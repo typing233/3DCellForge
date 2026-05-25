@@ -1,122 +1,458 @@
-import { useRef, useState, useMemo } from 'react'
+import { useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Select } from '@react-three/postprocessing'
 import useCellStore from '../store/useCellStore'
 
-const MEMBRANE_RADIUS = 3
-
-const TEMPLATES = [
-  { geometry: 'sphere', color: '#ff6b9d', scale: 0.7, args: [0.8, 32, 32], name: 'nucleus' },
-  { geometry: 'capsule', color: '#ffa726', scale: 0.4, args: [0.5, 0.5, 8, 16], name: 'mitochondria' },
-  { geometry: 'capsule', color: '#ff8f00', scale: 0.35, args: [0.5, 0.5, 8, 16], name: 'mitochondria' },
-  { geometry: 'dodecahedron', color: '#66bb6a', scale: 0.3, args: [1, 0], name: 'ribosome' },
-  { geometry: 'torus', color: '#ab47bc', scale: 0.3, args: [1, 0.4, 16, 32], name: 'vesicle' },
-]
-
-function randomPointInSphere(maxRadius) {
-  const u = Math.random()
-  const r = maxRadius * Math.cbrt(u)
-  const theta = Math.random() * Math.PI * 2
-  const phi = Math.acos(2 * Math.random() - 1)
-  return [
-    r * Math.sin(phi) * Math.cos(theta),
-    r * Math.sin(phi) * Math.sin(theta),
-    r * Math.cos(phi),
-  ]
-}
-
-function generateOrganelles() {
-  const count = 3 + Math.floor(Math.random() * 3) // 3 to 5
-  const selected = TEMPLATES.slice(0, count)
-  return selected.map((template, i) => {
-    const safeRadius = MEMBRANE_RADIUS - template.scale * 1.5
-    const position = i === 0 ? [0, 0, 0] : randomPointInSphere(safeRadius)
-    return {
-      id: `${template.name}-${i}`,
-      geometry: template.geometry,
-      position,
-      scale: [template.scale, template.scale, template.scale],
-      color: template.color,
-      args: template.args,
-    }
-  })
-}
-
-function Organelle({ data }) {
-  const meshRef = useRef()
-  const [hovered, setHovered] = useState(false)
-  const selectedId = useCellStore((s) => s.selectedOrganelleId)
-  const selectOrganelle = useCellStore((s) => s.selectOrganelle)
-  const isSelected = selectedId === data.id
+function Nucleus({ onClick, isSelected, isHovered, onHover, onUnhover }) {
+  const groupRef = useRef()
 
   useFrame((_, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x += delta * 0.3
-      meshRef.current.rotation.z += delta * 0.2
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.08
     }
   })
 
-  const handleClick = (e) => {
-    e.stopPropagation()
-    console.log(`[CellForge] Selected organelle: ${data.id}`)
-    selectOrganelle(data.id)
-  }
-
-  const emissiveIntensity = isSelected ? 0.5 : hovered ? 0.3 : 0
-
-  const renderGeometry = () => {
-    switch (data.geometry) {
-      case 'sphere':
-        return <sphereGeometry args={data.args} />
-      case 'capsule':
-        return <capsuleGeometry args={data.args} />
-      case 'dodecahedron':
-        return <dodecahedronGeometry args={data.args} />
-      case 'torus':
-        return <torusGeometry args={data.args} />
-      default:
-        return <sphereGeometry args={[0.5, 16, 16]} />
-    }
-  }
+  const emissive = isSelected ? 0.5 : isHovered ? 0.3 : 0
 
   return (
     <Select enabled={isSelected}>
-      <mesh
-        ref={meshRef}
-        position={data.position}
-        scale={data.scale}
-        onClick={handleClick}
-        onPointerOver={(e) => {
-          e.stopPropagation()
-          setHovered(true)
-          document.body.style.cursor = 'pointer'
-        }}
-        onPointerOut={() => {
-          setHovered(false)
-          document.body.style.cursor = 'auto'
-        }}
+      <group
+        ref={groupRef}
+        position={[0, 0, 0]}
+        onClick={onClick}
+        onPointerOver={onHover}
+        onPointerOut={onUnhover}
       >
-        {renderGeometry()}
-        <meshStandardMaterial
-          color={data.color}
-          emissive={data.color}
-          emissiveIntensity={emissiveIntensity}
-          roughness={0.4}
-          metalness={0.2}
-        />
-      </mesh>
+        {/* 核膜外层 */}
+        <mesh>
+          <sphereGeometry args={[0.9, 48, 48]} />
+          <meshPhysicalMaterial
+            color="#c62860"
+            emissive="#ff6b9d"
+            emissiveIntensity={emissive}
+            roughness={0.3}
+            metalness={0.1}
+            transparent
+            opacity={0.85}
+            clearcoat={0.4}
+          />
+        </mesh>
+        {/* 核仁 */}
+        <mesh position={[0.2, 0.1, 0.2]}>
+          <sphereGeometry args={[0.35, 32, 32]} />
+          <meshStandardMaterial
+            color="#8b1a4a"
+            emissive="#ff6b9d"
+            emissiveIntensity={emissive * 0.8}
+            roughness={0.5}
+          />
+        </mesh>
+        {/* 染色质团 */}
+        <mesh position={[-0.3, -0.2, 0.1]}>
+          <sphereGeometry args={[0.15, 16, 16]} />
+          <meshStandardMaterial color="#a0204e" roughness={0.6} />
+        </mesh>
+        <mesh position={[0.1, -0.3, -0.2]}>
+          <sphereGeometry args={[0.12, 16, 16]} />
+          <meshStandardMaterial color="#a0204e" roughness={0.6} />
+        </mesh>
+      </group>
     </Select>
   )
 }
 
+function Mitochondrion({ position, rotation, scale, onClick, isSelected, isHovered, onHover, onUnhover }) {
+  const groupRef = useRef()
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.x += delta * 0.15
+      groupRef.current.rotation.z += delta * 0.1
+    }
+  })
+
+  const emissive = isSelected ? 0.5 : isHovered ? 0.3 : 0
+  const s = scale || 1
+
+  return (
+    <Select enabled={isSelected}>
+      <group
+        ref={groupRef}
+        position={position}
+        rotation={rotation || [0, 0, 0]}
+        scale={[s, s, s]}
+        onClick={onClick}
+        onPointerOver={onHover}
+        onPointerOut={onUnhover}
+      >
+        {/* 外膜 - 胶囊形 */}
+        <mesh>
+          <capsuleGeometry args={[0.25, 0.6, 12, 24]} />
+          <meshPhysicalMaterial
+            color="#e67e22"
+            emissive="#ffa726"
+            emissiveIntensity={emissive}
+            roughness={0.35}
+            metalness={0.1}
+            clearcoat={0.3}
+          />
+        </mesh>
+        {/* 内膜嵴 - 多个环状结构 */}
+        {[-0.2, 0, 0.2].map((y, i) => (
+          <mesh key={i} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.18, 0.03, 8, 16]} />
+            <meshStandardMaterial
+              color="#d35400"
+              emissive="#ffa726"
+              emissiveIntensity={emissive * 0.6}
+              roughness={0.5}
+            />
+          </mesh>
+        ))}
+      </group>
+    </Select>
+  )
+}
+
+function EndoplasmicReticulum({ onClick, isSelected, isHovered, onHover, onUnhover }) {
+  const groupRef = useRef()
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.05
+    }
+  })
+
+  const emissive = isSelected ? 0.5 : isHovered ? 0.3 : 0
+
+  const tubes = [
+    { pos: [0.5, 0.1, 0.3], rot: [0.8, 0, 0.2], scaleX: 1.1 },
+    { pos: [-0.2, -0.3, 0.5], rot: [1.5, 1.05, 0.4], scaleX: 0.9 },
+    { pos: [-0.5, 0.2, -0.1], rot: [2.4, 2.1, 0.1], scaleX: 1.0 },
+    { pos: [0.3, -0.1, -0.4], rot: [0.3, 3.14, 0.3], scaleX: 0.85 },
+    { pos: [-0.1, 0.35, 0.4], rot: [1.9, 4.19, 0.15], scaleX: 1.15 },
+    { pos: [0.4, -0.25, 0.2], rot: [2.8, 5.24, 0.45], scaleX: 0.95 },
+  ]
+
+  return (
+    <Select enabled={isSelected}>
+      <group
+        ref={groupRef}
+        position={[1.4, 0.3, 0.5]}
+        onClick={onClick}
+        onPointerOver={onHover}
+        onPointerOut={onUnhover}
+      >
+        {tubes.map((t, i) => (
+          <mesh key={i} position={t.pos} rotation={t.rot} scale={[t.scaleX, 1, 1]}>
+            <torusGeometry args={[0.2, 0.05, 8, 16]} />
+            <meshPhysicalMaterial
+              color="#5c6bc0"
+              emissive="#7986cb"
+              emissiveIntensity={emissive}
+              roughness={0.4}
+              metalness={0.05}
+              transparent
+              opacity={0.9}
+            />
+          </mesh>
+        ))}
+        {/* 连接小管 */}
+        {tubes.slice(0, 3).map((t, i) => (
+          <mesh key={`conn-${i}`} position={t.pos} rotation={[t.rot[0] + 0.5, t.rot[1], t.rot[2]]}>
+            <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
+            <meshStandardMaterial
+              color="#3f51b5"
+              emissive="#7986cb"
+              emissiveIntensity={emissive * 0.5}
+            />
+          </mesh>
+        ))}
+      </group>
+    </Select>
+  )
+}
+
+function GolgiApparatus({ onClick, isSelected, isHovered, onHover, onUnhover }) {
+  const groupRef = useRef()
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.06
+    }
+  })
+
+  const emissive = isSelected ? 0.5 : isHovered ? 0.3 : 0
+
+  return (
+    <Select enabled={isSelected}>
+      <group
+        ref={groupRef}
+        position={[-1.5, -0.5, 0.8]}
+        rotation={[0.3, 0.5, 0]}
+        onClick={onClick}
+        onPointerOver={onHover}
+        onPointerOut={onUnhover}
+      >
+        {/* 扁平膜囊堆叠 */}
+        {[0.24, 0.12, 0, -0.12, -0.24].map((y, i) => (
+          <mesh key={i} position={[0, y, i * 0.04]} scale={[1 - i * 0.08, 1, 1 - i * 0.05]}>
+            <boxGeometry args={[0.7, 0.06, 0.35]} />
+            <meshPhysicalMaterial
+              color={i < 2 ? '#26a69a' : i < 4 ? '#00897b' : '#00695c'}
+              emissive="#4db6ac"
+              emissiveIntensity={emissive}
+              roughness={0.3}
+              metalness={0.1}
+              clearcoat={0.2}
+            />
+          </mesh>
+        ))}
+        {/* 囊泡 */}
+        <mesh position={[0.45, 0.1, 0]}>
+          <sphereGeometry args={[0.06, 12, 12]} />
+          <meshStandardMaterial color="#80cbc4" emissive="#4db6ac" emissiveIntensity={emissive * 0.6} />
+        </mesh>
+        <mesh position={[0.5, -0.1, 0.1]}>
+          <sphereGeometry args={[0.05, 12, 12]} />
+          <meshStandardMaterial color="#80cbc4" emissive="#4db6ac" emissiveIntensity={emissive * 0.6} />
+        </mesh>
+        <mesh position={[-0.4, -0.15, -0.05]}>
+          <sphereGeometry args={[0.05, 12, 12]} />
+          <meshStandardMaterial color="#80cbc4" emissive="#4db6ac" emissiveIntensity={emissive * 0.6} />
+        </mesh>
+      </group>
+    </Select>
+  )
+}
+
+function Ribosome({ position, onClick, isSelected, isHovered, onHover, onUnhover }) {
+  const groupRef = useRef()
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.x += delta * 0.4
+      groupRef.current.rotation.y += delta * 0.3
+    }
+  })
+
+  const emissive = isSelected ? 0.6 : isHovered ? 0.35 : 0
+
+  return (
+    <Select enabled={isSelected}>
+      <group
+        ref={groupRef}
+        position={position}
+        onClick={onClick}
+        onPointerOver={onHover}
+        onPointerOut={onUnhover}
+      >
+        {/* 大亚基 */}
+        <mesh position={[0, 0.04, 0]}>
+          <sphereGeometry args={[0.1, 16, 16]} />
+          <meshStandardMaterial
+            color="#66bb6a"
+            emissive="#a5d6a7"
+            emissiveIntensity={emissive}
+            roughness={0.5}
+          />
+        </mesh>
+        {/* 小亚基 */}
+        <mesh position={[0, -0.06, 0]}>
+          <sphereGeometry args={[0.07, 16, 16]} />
+          <meshStandardMaterial
+            color="#388e3c"
+            emissive="#81c784"
+            emissiveIntensity={emissive}
+            roughness={0.5}
+          />
+        </mesh>
+      </group>
+    </Select>
+  )
+}
+
+function Lysosome({ position, onClick, isSelected, isHovered, onHover, onUnhover }) {
+  const meshRef = useRef()
+
+  useFrame((_, delta) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += delta * 0.2
+      meshRef.current.rotation.x += delta * 0.15
+    }
+  })
+
+  const emissive = isSelected ? 0.5 : isHovered ? 0.3 : 0
+
+  return (
+    <Select enabled={isSelected}>
+      <group
+        position={position}
+        onClick={onClick}
+        onPointerOver={onHover}
+        onPointerOut={onUnhover}
+      >
+        <mesh ref={meshRef}>
+          <sphereGeometry args={[0.22, 24, 24]} />
+          <meshPhysicalMaterial
+            color="#ab47bc"
+            emissive="#ce93d8"
+            emissiveIntensity={emissive}
+            roughness={0.3}
+            metalness={0.15}
+            clearcoat={0.5}
+            transparent
+            opacity={0.9}
+          />
+        </mesh>
+        {/* 内部酶颗粒 */}
+        <mesh position={[0.05, 0.05, 0.08]}>
+          <sphereGeometry args={[0.05, 8, 8]} />
+          <meshStandardMaterial color="#7b1fa2" opacity={0.7} transparent />
+        </mesh>
+        <mesh position={[-0.06, -0.04, 0.06]}>
+          <sphereGeometry args={[0.04, 8, 8]} />
+          <meshStandardMaterial color="#7b1fa2" opacity={0.7} transparent />
+        </mesh>
+      </group>
+    </Select>
+  )
+}
+
+function Centrosome({ onClick, isSelected, isHovered, onHover, onUnhover }) {
+  const groupRef = useRef()
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.3
+    }
+  })
+
+  const emissive = isSelected ? 0.5 : isHovered ? 0.3 : 0
+
+  return (
+    <Select enabled={isSelected}>
+      <group
+        ref={groupRef}
+        position={[0.3, 1.2, -0.3]}
+        onClick={onClick}
+        onPointerOver={onHover}
+        onPointerOut={onUnhover}
+      >
+        {/* 第一个中心粒 - 垂直 */}
+        <mesh rotation={[0, 0, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.3, 9]} />
+          <meshStandardMaterial
+            color="#78909c"
+            emissive="#b0bec5"
+            emissiveIntensity={emissive}
+            roughness={0.4}
+            metalness={0.3}
+          />
+        </mesh>
+        {/* 第二个中心粒 - 水平（互相垂直） */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0.1, 0, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.3, 9]} />
+          <meshStandardMaterial
+            color="#607d8b"
+            emissive="#90a4ae"
+            emissiveIntensity={emissive}
+            roughness={0.4}
+            metalness={0.3}
+          />
+        </mesh>
+        {/* 微管放射 */}
+        {[0, 1, 2, 3, 4, 5].map((i) => {
+          const angle = (i / 6) * Math.PI * 2
+          return (
+            <mesh
+              key={i}
+              position={[Math.cos(angle) * 0.2, 0, Math.sin(angle) * 0.2]}
+              rotation={[0, 0, Math.PI / 2 + angle]}
+            >
+              <cylinderGeometry args={[0.01, 0.01, 0.25, 4]} />
+              <meshStandardMaterial color="#b0bec5" transparent opacity={0.5} />
+            </mesh>
+          )
+        })}
+      </group>
+    </Select>
+  )
+}
+
+const ORGANELLE_CONFIGS = [
+  { id: 'nucleus', type: 'nucleus' },
+  { id: 'mitochondria-1', type: 'mitochondria', position: [1.8, 0.8, -0.5], rotation: [0.5, 0, 0.3], scale: 1 },
+  { id: 'mitochondria-2', type: 'mitochondria', position: [-1.0, 1.2, 1.0], rotation: [0, 0.8, -0.4], scale: 0.85 },
+  { id: 'mitochondria-3', type: 'mitochondria', position: [-0.5, -1.5, -1.2], rotation: [1.2, 0, 0.6], scale: 0.9 },
+  { id: 'mitochondria-4', type: 'mitochondria', position: [1.2, -1.0, 1.0], rotation: [-0.3, 1.0, 0], scale: 0.75 },
+  { id: 'er', type: 'er' },
+  { id: 'golgi', type: 'golgi' },
+  { id: 'ribosome-1', type: 'ribosome', position: [0.8, 0.5, 1.5] },
+  { id: 'ribosome-2', type: 'ribosome', position: [-0.6, 1.0, -1.4] },
+  { id: 'ribosome-3', type: 'ribosome', position: [1.5, -0.3, -1.0] },
+  { id: 'ribosome-4', type: 'ribosome', position: [-1.8, -0.8, 0.3] },
+  { id: 'ribosome-5', type: 'ribosome', position: [0.2, -1.8, 0.8] },
+  { id: 'lysosome-1', type: 'lysosome', position: [-1.6, 0.6, -0.8] },
+  { id: 'lysosome-2', type: 'lysosome', position: [0.8, -1.3, -0.6] },
+  { id: 'centrosome', type: 'centrosome' },
+]
+
 export default function Organelles() {
-  const organelles = useMemo(() => generateOrganelles(), [])
+  const selectedId = useCellStore((s) => s.selectedOrganelleId)
+  const selectOrganelle = useCellStore((s) => s.selectOrganelle)
+  const [hoveredId, setHoveredId] = useState(null)
+
+  const makeHandlers = (id) => ({
+    onClick: (e) => {
+      e.stopPropagation()
+      selectOrganelle(id)
+    },
+    onHover: (e) => {
+      e.stopPropagation()
+      setHoveredId(id)
+      document.body.style.cursor = 'pointer'
+    },
+    onUnhover: () => {
+      setHoveredId(null)
+      document.body.style.cursor = 'auto'
+    },
+    isSelected: selectedId === id,
+    isHovered: hoveredId === id,
+  })
 
   return (
     <group>
-      {organelles.map((organelle) => (
-        <Organelle key={organelle.id} data={organelle} />
-      ))}
+      {ORGANELLE_CONFIGS.map((config) => {
+        const handlers = makeHandlers(config.id)
+
+        switch (config.type) {
+          case 'nucleus':
+            return <Nucleus key={config.id} {...handlers} />
+          case 'mitochondria':
+            return (
+              <Mitochondrion
+                key={config.id}
+                position={config.position}
+                rotation={config.rotation}
+                scale={config.scale}
+                {...handlers}
+              />
+            )
+          case 'er':
+            return <EndoplasmicReticulum key={config.id} {...handlers} />
+          case 'golgi':
+            return <GolgiApparatus key={config.id} {...handlers} />
+          case 'ribosome':
+            return <Ribosome key={config.id} position={config.position} {...handlers} />
+          case 'lysosome':
+            return <Lysosome key={config.id} position={config.position} {...handlers} />
+          case 'centrosome':
+            return <Centrosome key={config.id} {...handlers} />
+          default:
+            return null
+        }
+      })}
     </group>
   )
 }

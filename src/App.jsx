@@ -3,6 +3,7 @@ import { OrbitControls, Environment } from '@react-three/drei'
 import { Selection, EffectComposer, Outline } from '@react-three/postprocessing'
 import CellMembrane from './components/CellMembrane'
 import Organelles from './components/Organelles'
+import InfoPanel from './components/InfoPanel'
 import useCellStore from './store/useCellStore'
 
 function Scene() {
@@ -10,7 +11,9 @@ function Scene() {
     <>
       <ambientLight intensity={0.4} />
       <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
+      <directionalLight position={[-3, 2, -4]} intensity={0.3} color="#aaccff" />
       <pointLight position={[-5, -3, -5]} intensity={0.5} color="#88ccff" />
+      <pointLight position={[3, -2, 4]} intensity={0.3} color="#ff88cc" />
 
       <CellMembrane />
 
@@ -21,8 +24,8 @@ function Scene() {
             visibleEdgeColor={0x00ffff}
             hiddenEdgeColor={0x004444}
             blur
-            edgeStrength={6}
-            pulseSpeed={0.4}
+            edgeStrength={8}
+            pulseSpeed={0.5}
             xRay={false}
           />
         </EffectComposer>
@@ -44,7 +47,7 @@ export default function App() {
   const clearSelection = useCellStore((s) => s.clearSelection)
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0a0a1a' }}>
+    <div style={{ width: '100vw', height: '100vh', background: '#0a0a1a', position: 'relative' }}>
       <Canvas
         camera={{ position: [0, 0, 8], fov: 50 }}
         onPointerMissed={clearSelection}
@@ -53,6 +56,7 @@ export default function App() {
       >
         <Scene />
       </Canvas>
+      <InfoPanel />
     </div>
   )
 }
