@@ -9,6 +9,14 @@ html, body, #root {
   height: 100%;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+canvas {
+  touch-action: none;
 }
 
 @keyframes slideIn {
@@ -19,5 +27,26 @@ html, body, #root {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+button:hover {
+  filter: brightness(1.2);
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .info-panel {
+    width: 280px !important;
+    right: 12px !important;
+    top: 12px !important;
   }
 }
