@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { useRef, useState, useCallback } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Environment } from '@react-three/drei'
 import { Selection, EffectComposer, Outline } from '@react-three/postprocessing'
 import CellMembrane from './components/CellMembrane'
@@ -15,22 +15,14 @@ const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(
   typeof navigator !== 'undefined' ? navigator.userAgent : ''
 )
 
-function SceneReadyNotifier() {
-  const { gl, scene, camera } = useThree()
-  const setSceneReady = useCellStore((s) => s.setSceneReady)
+function SceneReadySignal() {
+  const fired = useRef(false)
 
-  useEffect(() => {
-    let frameCount = 0
-    const id = setInterval(() => {
-      frameCount++
-      if (frameCount >= 2) {
-        gl.render(scene, camera)
-        setSceneReady()
-        clearInterval(id)
-      }
-    }, 100)
-    return () => clearInterval(id)
-  }, [gl, scene, camera, setSceneReady])
+  useFrame(() => {
+    if (fired.current) return
+    fired.current = true
+    useCellStore.getState().setSceneReady()
+  })
 
   return null
 }
@@ -63,7 +55,7 @@ function Scene({ controlsRef }) {
 
       <CameraAnimation />
       <CameraFocus controlsRef={controlsRef} />
-      <SceneReadyNotifier />
+      <SceneReadySignal />
 
       <OrbitControls
         ref={controlsRef}
@@ -85,7 +77,6 @@ function Scene({ controlsRef }) {
 
 export default function App() {
   const clearSelection = useCellStore((s) => s.clearSelection)
-  const sceneReady = useCellStore((s) => s.sceneReady)
   const controlsRef = useRef()
   const [dismissed, setDismissed] = useState(false)
 
@@ -99,11 +90,9 @@ export default function App() {
     setDismissed(true)
   }, [])
 
-  const showLoading = !dismissed
-
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#0a0a1a', position: 'relative', touchAction: 'none' }}>
-      {showLoading && <LoadingProgress sceneReady={sceneReady} onDismiss={handleLoadDismiss} />}
+      {!dismissed && <LoadingProgress onDismiss={handleLoadDismiss} />}
       <Canvas
         camera={{ position: [0, 0, 20], fov: 50 }}
         onPointerMissed={clearSelection}

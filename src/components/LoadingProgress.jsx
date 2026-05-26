@@ -1,52 +1,52 @@
-import { useRef, useState, useEffect, useCallback, memo } from 'react'
+import { useRef, useEffect } from 'react'
+import useCellStore from '../store/useCellStore'
 
-const LoadingProgress = memo(function LoadingProgress({ sceneReady, onDismiss }) {
-  const [progress, setProgress] = useState(0)
-  const [fading, setFading] = useState(false)
-  const rafRef = useRef()
-  const startRef = useRef(null)
-  const phaseRef = useRef('simulating')
+export default function LoadingProgress({ onDismiss }) {
+  const overlayRef = useRef(null)
+  const barRef = useRef(null)
+  const percentRef = useRef(null)
+  const subtitleRef = useRef(null)
 
   useEffect(() => {
-    const animate = (timestamp) => {
-      if (!startRef.current) startRef.current = timestamp
-      const elapsed = timestamp - startRef.current
+    let raf
+    let progress = 0
+    let dismissed = false
 
-      if (phaseRef.current === 'simulating') {
-        const target = sceneReady ? 100 : Math.min(85, (elapsed / 2000) * 85)
-        setProgress((prev) => {
-          const next = prev + (target - prev) * 0.08
-          return Math.min(100, next)
-        })
+    const animate = () => {
+      if (dismissed) return
 
-        if (sceneReady) {
-          phaseRef.current = 'completing'
-          startRef.current = timestamp
-        }
-      } else if (phaseRef.current === 'completing') {
-        setProgress((prev) => {
-          const next = prev + (100 - prev) * 0.15
-          if (next >= 99.5) {
-            phaseRef.current = 'done'
-            return 100
-          }
-          return next
-        })
+      const sceneReady = useCellStore.getState().sceneReady
+
+      if (!sceneReady) {
+        progress += (70 - progress) * 0.02
       } else {
-        setFading(true)
+        progress += (100 - progress) * 0.12
+      }
+
+      const p = Math.min(100, progress)
+      if (barRef.current) barRef.current.style.width = `${p}%`
+      if (percentRef.current) percentRef.current.textContent = `${Math.round(p)}%`
+
+      if (sceneReady && p >= 99.5) {
+        if (barRef.current) barRef.current.style.width = '100%'
+        if (percentRef.current) percentRef.current.textContent = '100%'
+        if (subtitleRef.current) subtitleRef.current.textContent = '准备就绪'
+
+        dismissed = true
+        if (overlayRef.current) overlayRef.current.style.opacity = '0'
         setTimeout(() => { if (onDismiss) onDismiss() }, 400)
         return
       }
 
-      rafRef.current = requestAnimationFrame(animate)
+      raf = requestAnimationFrame(animate)
     }
 
-    rafRef.current = requestAnimationFrame(animate)
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [sceneReady, onDismiss])
+    raf = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(raf)
+  }, [onDismiss])
 
   return (
-    <div style={{ ...styles.overlay, opacity: fading ? 0 : 1 }}>
+    <div ref={overlayRef} style={styles.overlay}>
       <div style={styles.content}>
         <div style={styles.icon}>
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -57,19 +57,15 @@ const LoadingProgress = memo(function LoadingProgress({ sceneReady, onDismiss })
           </svg>
         </div>
         <div style={styles.title}>3D CellForge</div>
-        <div style={styles.subtitle}>
-          {progress < 100 ? '初始化场景...' : '准备就绪'}
-        </div>
+        <div ref={subtitleRef} style={styles.subtitle}>初始化场景...</div>
         <div style={styles.barContainer}>
-          <div style={{ ...styles.bar, width: `${progress}%` }} />
+          <div ref={barRef} style={styles.bar} />
         </div>
-        <div style={styles.percent}>{Math.round(progress)}%</div>
+        <div ref={percentRef} style={styles.percent}>0%</div>
       </div>
     </div>
   )
-})
-
-export default LoadingProgress
+}
 
 const styles = {
   overlay: {
@@ -81,6 +77,7 @@ const styles = {
     justifyContent: 'center',
     zIndex: 1000,
     transition: 'opacity 0.4s ease-out',
+    willChange: 'opacity',
   },
   content: {
     display: 'flex',
@@ -112,9 +109,10 @@ const styles = {
   },
   bar: {
     height: '100%',
+    width: '0%',
     background: 'linear-gradient(90deg, #00dcff, #0088ff)',
     borderRadius: '2px',
-    transition: 'width 0.05s linear',
+    willChange: 'width',
   },
   percent: {
     fontSize: '11px',
