@@ -3,16 +3,17 @@ import { ORGANELLE_CONFIGS } from './Organelles'
 
 const UNIQUE_TYPES = [...new Set(ORGANELLE_CONFIGS.map(c => c.type))]
 
-export default function UIControls({ onResetCamera, onFocusOrganelle }) {
+export default function UIControls({ onResetCamera }) {
   const labelsVisible = useCellStore((s) => s.labelsVisible)
   const toggleLabels = useCellStore((s) => s.toggleLabels)
   const selectOrganelle = useCellStore((s) => s.selectOrganelle)
+  const setFocusTarget = useCellStore((s) => s.setFocusTarget)
 
   const handleJump = (type) => {
     const config = ORGANELLE_CONFIGS.find(c => c.type === type)
     if (config) {
       selectOrganelle(config.id)
-      if (onFocusOrganelle) onFocusOrganelle(config)
+      setFocusTarget(config.position || [0, 0, 0])
     }
   }
 

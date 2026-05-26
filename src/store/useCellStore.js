@@ -92,6 +92,7 @@ const useCellStore = create((set) => ({
   panelOpen: true,
   labelsVisible: true,
   sceneReady: false,
+  focusTarget: null,
 
   selectOrganelle: (id) => set({ selectedOrganelleId: id, panelOpen: true }),
   clearSelection: () => set({ selectedOrganelleId: null }),
@@ -99,6 +100,8 @@ const useCellStore = create((set) => ({
   closePanel: () => set({ panelOpen: false }),
   toggleLabels: () => set((s) => ({ labelsVisible: !s.labelsVisible })),
   setSceneReady: () => set({ sceneReady: true }),
+  setFocusTarget: (pos) => set({ focusTarget: pos }),
+  clearFocusTarget: () => set({ focusTarget: null }),
 }))
 
 export default useCellStore

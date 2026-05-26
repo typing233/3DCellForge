@@ -464,13 +464,13 @@ function Centrosome({ onClick, isSelected, isHovered, onHover, onUnhover, showLa
 }
 
 export const ORGANELLE_CONFIGS = [
-  { id: 'nucleus', type: 'nucleus' },
+  { id: 'nucleus', type: 'nucleus', position: [0, 0, 0] },
   { id: 'mitochondria-1', type: 'mitochondria', position: [1.8, 0.8, -0.5], rotation: [0.5, 0, 0.3], scale: 1 },
   { id: 'mitochondria-2', type: 'mitochondria', position: [-1.0, 1.2, 1.0], rotation: [0, 0.8, -0.4], scale: 0.85 },
   { id: 'mitochondria-3', type: 'mitochondria', position: [-0.5, -1.5, -1.2], rotation: [1.2, 0, 0.6], scale: 0.9 },
   { id: 'mitochondria-4', type: 'mitochondria', position: [1.2, -1.0, 1.0], rotation: [-0.3, 1.0, 0], scale: 0.75 },
-  { id: 'er', type: 'er' },
-  { id: 'golgi', type: 'golgi' },
+  { id: 'er', type: 'er', position: [1.4, 0.3, 0.5] },
+  { id: 'golgi', type: 'golgi', position: [-1.5, -0.5, 0.8] },
   { id: 'ribosome-1', type: 'ribosome', position: [0.8, 0.5, 1.5] },
   { id: 'ribosome-2', type: 'ribosome', position: [-0.6, 1.0, -1.4] },
   { id: 'ribosome-3', type: 'ribosome', position: [1.5, -0.3, -1.0] },
@@ -478,7 +478,7 @@ export const ORGANELLE_CONFIGS = [
   { id: 'ribosome-5', type: 'ribosome', position: [0.2, -1.8, 0.8] },
   { id: 'lysosome-1', type: 'lysosome', position: [-1.6, 0.6, -0.8] },
   { id: 'lysosome-2', type: 'lysosome', position: [0.8, -1.3, -0.6] },
-  { id: 'centrosome', type: 'centrosome' },
+  { id: 'centrosome', type: 'centrosome', position: [0.3, 1.2, -0.3] },
 ]
 
 export default function Organelles() {
